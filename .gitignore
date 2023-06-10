@@ -4,6 +4,8 @@
 *.html
 *.md
 !README.md
+*.json
+*.csv
 
 ### Emacs ###
 # -*- mode: gitignore; -*-
