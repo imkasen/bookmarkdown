@@ -8,7 +8,7 @@ import sys
 from bs4 import BeautifulSoup
 
 
-def parse_input() -> tuple[str, str, str]:
+def parse_input() -> tuple[str, str]:
     description: str = "A simple script which can convert brower bookmarks(a HTML file) into a Markdown file (also support CSV and JSON)."
     example: str = '''Example:\npython3 convert -i bookmarks.html -o bookmarks.md'''
 
@@ -38,10 +38,17 @@ def convert2json(content: str) -> dict:
     dl_tag = toolbar_dl_tag.find("dl")  # first dir
 
     dir: dict = {}
+    tag: None  # used to obtain bookmarks which do not belong to any dir
     while dl_tag:  # parse multiple same-level dirs
         tmp_dir: dict = parse_folders(dl_tag)
-        dir.update(tmp_dir)  # TODO: conflits that different dirs with the same name
-        dl_tag = dl_tag.find_next_sibling().find("dl")
+        # TODO: different dirs with the same name should be placed into different places
+        dir.update(tmp_dir)
+        tag = dl_tag.find_next_sibling()
+        dl_tag = tag.find("dl")
+
+    # TODO: parse bookmarks before any dirs
+    for a_tag in tag.find_all("a"):
+        dir[a_tag.text] = a_tag["href"]
 
     return dir
 
@@ -92,6 +99,7 @@ def parse_folders(tag) -> dict:
             tag = sub_dl_tag.find_next_sibling()
             sub_dl_tag = tag.find("dl")  # next same-level subdir
 
+        # TODO: parse bookmarks before any dirs
         for a_tag in tag.find_all("a"):  # bookmarks in current dir
             dir[a_tag.text] = a_tag["href"]
         return {dir_title: dir}
