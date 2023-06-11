@@ -40,15 +40,13 @@ def convert2json(content: str) -> dict:
     dir: dict = {}
     while dl_tag:
         tmp_dir: dict = parse_folders(dl_tag)
-        if tmp_dir:
-            # TODO: conflits that different dirs with the same name
-            dir.update(tmp_dir)
+        dir.update(tmp_dir)  # TODO: conflits that different dirs with the same name
         dl_tag = dl_tag.find_next_sibling().find("dl")
 
     return dir
 
 
-def parse_folders(tag) -> dict | None:
+def parse_folders(tag) -> dict:
     """
     parse the basic folder structure, a '<h3>' folder title and multiple '<a>' bookmarks.
 
@@ -64,15 +62,23 @@ def parse_folders(tag) -> dict | None:
     :return: dict or None
     """
     h3_tag = tag.find_previous_sibling("h3")
+    sub_dl_tag = tag.find("dl")
+    dir: dict = {}
 
     if h3_tag:
         dir_title: str = h3_tag.text
-        dir: dict = {}
-        for a_tag in tag.find_all("a"):
-            dir[a_tag.text] = a_tag["href"]
-        return {dir_title: dir}
+        if sub_dl_tag:
+            subdir = parse_folders(sub_dl_tag)
+            dir.update(subdir)
+            for a_tag in sub_dl_tag.find_next_sibling().find_all("a"):
+                dir[a_tag.text] = a_tag["href"]
+            return {dir_title: dir}
+        else:
+            for a_tag in tag.find_all("a"):
+                dir[a_tag.text] = a_tag["href"]
+            return {dir_title: dir}
 
-    return None
+    return dir
 
 
 if __name__ == "__main__":
