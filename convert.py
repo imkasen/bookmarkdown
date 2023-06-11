@@ -35,10 +35,10 @@ def convert2json(content: str) -> dict:
 
     # Firefox bookmarks will provide a <H3> tag with a 'PERSONAL_TOOLBAR_FOLDER' attribute
     toolbar_dl_tag = soup.find("h3", attrs={"personal_toolbar_folder": "true"}).find_next_sibling("dl")
-    dl_tag = toolbar_dl_tag.find("dl")
+    dl_tag = toolbar_dl_tag.find("dl")  # first dir
 
     dir: dict = {}
-    while dl_tag:
+    while dl_tag:  # parse multiple same-level dirs
         tmp_dir: dict = parse_folders(dl_tag)
         dir.update(tmp_dir)  # TODO: conflits that different dirs with the same name
         dl_tag = dl_tag.find_next_sibling().find("dl")
@@ -50,11 +50,30 @@ def parse_folders(tag) -> dict:
     """
     parse the basic folder structure, a '<h3>' folder title and multiple '<a>' bookmarks.
 
+    BASIC STRUCTURE:
     ```
     <DT><H3 ...>folder title</H3>
     <DL><p>
         <DT><A href="link1" ...>bookmark1</A>
         <DT><A href="link2" ...>bookmark2</A>
+        ... MORE BOOKMARKS
+    </DL><p>
+    ```
+
+    NESTED STRUCTURE:
+    ```
+    <DT><H3 ...>folder title</H3>
+    <DL><p>
+        <DT><H3 ...>inner folder title</H3>
+        <DL><p>
+            ... MORE INNER FOLDERS
+            <DT><A href="inner link1" ...>inner bookmark1</A>
+            <DT><A href="inner link2" ...>inner bookmark2</A>
+        </DL><p>
+        ... MORE FOLERS
+        <DT><A href="link1" ...>bookmark1</A>
+        <DT><A href="link2" ...>bookmark2</A>
+        ... MORE BOOKMARKS
     </DL><p>
     ```
 
@@ -66,17 +85,16 @@ def parse_folders(tag) -> dict:
     dir: dict = {}
 
     if h3_tag:
-        dir_title: str = h3_tag.text
-        if sub_dl_tag:
-            subdir = parse_folders(sub_dl_tag)
+        dir_title: str = h3_tag.text  # get dir title
+        while sub_dl_tag:  # subdir exists, parse multiple same-level subdirs
+            subdir = parse_folders(sub_dl_tag)  # parse nested subdirs
             dir.update(subdir)
-            for a_tag in sub_dl_tag.find_next_sibling().find_all("a"):
-                dir[a_tag.text] = a_tag["href"]
-            return {dir_title: dir}
-        else:
-            for a_tag in tag.find_all("a"):
-                dir[a_tag.text] = a_tag["href"]
-            return {dir_title: dir}
+            tag = sub_dl_tag.find_next_sibling()
+            sub_dl_tag = tag.find("dl")  # next same-level subdir
+
+        for a_tag in tag.find_all("a"):  # bookmarks in current dir
+            dir[a_tag.text] = a_tag["href"]
+        return {dir_title: dir}
 
     return dir
 
