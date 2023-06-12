@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 
 
 def parse_input() -> tuple[str, str]:
-    description: str = "A simple script which can convert brower bookmarks(a HTML file) into a Markdown file (also support CSV and JSON)."
+    description: str = "A simple script which can convert brower bookmarks(a HTML file) into a Markdown file (also support JSON)."
     example: str = '''Example:\npython3 convert -i bookmarks.html -o bookmarks.md'''
 
     parser = argparse.ArgumentParser(description, epilog=example, formatter_class=argparse.RawTextHelpFormatter)
@@ -20,20 +20,26 @@ def parse_input() -> tuple[str, str]:
     return args.input, args.output
 
 
-def check_file(input_path: str, output_path: str) -> None:
+def check_file(input_path: str, output_path: str) -> str:
     _, extension = os.path.splitext(input_path)
+    file_extension: str = os.path.splitext(output_path.lower())[-1][1:]
+
     if not os.path.exists(input_path):
         sys.exit(f"Sorry, '{input_path}' is invalid.")
     if os.path.isfile(input_path) and not extension.lower() == ".html":
         sys.exit(f"Sorry, '{input_path}' is not a HTML file.")
     if os.path.exists(output_path) or os.path.isfile(output_path):
         sys.exit(f"Sorry, '{output_path}' already exists.")
+    if (file_extension != "md") and (file_extension != "json"):
+        sys.exit(f"Sorry, '{file_extension}' is not a supported output file extension.")
+
+    return file_extension
 
 
-def convert2json(content: str) -> dict:
+def convert2dict(content: str) -> dict:
     soup = BeautifulSoup(content, "html.parser")
 
-    # Firefox bookmarks will provide a <H3> tag with a 'PERSONAL_TOOLBAR_FOLDER' attribute
+    # Browser exported bookmark HTML file contains a <H3> tag with a 'PERSONAL_TOOLBAR_FOLDER' attribute
     toolbar_dl_tag = soup.find("h3", attrs={"personal_toolbar_folder": "true"}).find_next_sibling("dl")
     dl_tag = toolbar_dl_tag.find("dl")  # first dir
 
@@ -46,7 +52,7 @@ def convert2json(content: str) -> dict:
         tag = dl_tag.find_next_sibling()
         dl_tag = tag.find("dl")
 
-    # TODO: parse bookmarks before any dirs
+    # TODO: bookmarks before or after any dirs should be parsed
     for a_tag in tag.find_all("a"):
         dir[a_tag.text] = a_tag["href"]
 
@@ -99,7 +105,7 @@ def parse_folders(tag) -> dict:
             tag = sub_dl_tag.find_next_sibling()
             sub_dl_tag = tag.find("dl")  # next same-level subdir
 
-        # TODO: parse bookmarks before any dirs
+        # TODO: bookmarks before or after any dirs should be parsed
         for a_tag in tag.find_all("a"):  # bookmarks in current dir
             dir[a_tag.text] = a_tag["href"]
         return {dir_title: dir}
@@ -109,18 +115,12 @@ def parse_folders(tag) -> dict:
 
 if __name__ == "__main__":
     input_path, output_path = parse_input()
-    check_file(input_path, output_path)
-    type: str = os.path.splitext(output_path.lower())[-1][1:]
+    file_extension: str = check_file(input_path, output_path)
 
-    if type == "json":
-        with open(input_path, "r", encoding="utf-8") as input_file, \
-             open(output_path, "w", encoding="utf-8") as output_file:
-            content: str = input_file.read()
-            dir: dict = convert2json(content)
-            json.dump(dir, output_file, ensure_ascii=False)
-    elif type == "csv":
-        pass
-    elif type == "md":
-        pass
-    else:
-        sys.exit("Unknown output file type!")
+    with open(input_path, "r", encoding="utf-8") as input_file, open(output_path, "w", encoding="utf-8") as output_file:
+        content: str = input_file.read()
+        bookmarks: dict = convert2dict(content)
+        if file_extension == "json":
+            json.dump(bookmarks, output_file, ensure_ascii=False)
+        else:  # md
+            pass
