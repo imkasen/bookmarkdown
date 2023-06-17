@@ -113,6 +113,20 @@ def parse_folders(tag) -> dict:
     return dir
 
 
+def write2MD(bookmarks: dict, indent: int) -> str:
+    md_str: str = ""
+    INDENT_SPACES: str = " " * 2
+
+    for key, value in bookmarks.items():
+        if isinstance(value, str):
+            md_str += indent * INDENT_SPACES + f"- [{key}]({value})\n"
+        else:  # isinstance(value, dict)
+            md_str += indent * INDENT_SPACES + f"- {key}:\n"
+            md_str += write2MD(value, indent + 1)
+
+    return md_str
+
+
 if __name__ == "__main__":
     input_path, output_path = parse_input()
     file_extension: str = check_file(input_path, output_path)
@@ -123,4 +137,6 @@ if __name__ == "__main__":
         if file_extension == "json":
             json.dump(bookmarks, output_file, ensure_ascii=False)
         else:  # md
-            pass
+            output_file.write("# Bookmarks\n\n")
+            md_content: str = write2MD(bookmarks, 0)
+            output_file.write(md_content)
